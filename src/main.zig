@@ -314,7 +314,5 @@ pub fn main() anyerror!void {
     }
 
     stats.elapsed_time = @intToFloat(f64, timer.read() - start_time) / time.ns_per_s;
-    if (stats.elapsed_time > 10) {
-        print_stats(stats);
-    }
+    print_stats(stats);
 }
