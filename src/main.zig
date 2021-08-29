@@ -307,10 +307,6 @@ pub fn main() anyerror!void {
             print_stats(stats);
             last_stats_time = current_time;
         }
-
-        if (stats.cases > 100000) {
-            running = false;
-        }
     }
 
     stats.elapsed_time = @intToFloat(f64, timer.read() - start_time) / time.ns_per_s;
