@@ -271,14 +271,7 @@ pub fn main() anyerror!void {
         }
 
         // Write sample to disk
-        {
-            const file = try std.fs.cwd().createFile(
-                input_filename,
-                .{ .truncate = true },
-            );
-            _ = try file.writeAll(candidate.data.items);
-            file.close();
-        }
+        try candidate.writeToFile(input_filename);
 
         const fork_pid = try std.os.fork();
         if (fork_pid == 0) {

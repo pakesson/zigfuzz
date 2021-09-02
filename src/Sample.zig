@@ -22,3 +22,12 @@ pub fn deinit(self: *Self) void {
     self.data.deinit();
     self.trace.deinit();
 }
+
+pub fn writeToFile(self: *Self, filename: []const u8) !void {
+    const file = try std.fs.cwd().createFile(
+        filename,
+        .{ .truncate = true },
+    );
+    defer file.close();
+    try file.writeAll(self.data.items);
+}
