@@ -192,9 +192,14 @@ pub fn main() anyerror!void {
     const target_binary = "./examples/example1";
     const input_filename = "input_file";
     const crash_directory = "crashes";
+    const corpus_directory = "corpus";
 
     // Create directories
     std.fs.cwd().makeDir(crash_directory) catch |err| switch (err) {
+        error.PathAlreadyExists => {},
+        else => return err,
+    };
+    std.fs.cwd().makeDir(corpus_directory) catch |err| switch (err) {
         error.PathAlreadyExists => {},
         else => return err,
     };
@@ -209,16 +214,32 @@ pub fn main() anyerror!void {
     // We will use symbols to track coverage
     try elfFile.load_symbols();
 
-    // TODO: Load corpus from filesystem instead
-    var start_sample = Sample.init(allocator);
-    try start_sample.data.insertSlice(0, "aaaaaa");
-
+    // TODO: Refactor into SamplePool type
     var sample_pool = ArrayList(Sample).init(allocator);
-    try sample_pool.append(start_sample);
     defer {
         for (sample_pool.items) |*item| item.deinit();
         sample_pool.deinit();
     }
+
+    var cwd = try std.fs.cwd().openDir(corpus_directory, .{.iterate = true});
+    defer cwd.close();
+    var dir_it = cwd.iterate();
+    while (try dir_it.next()) |entry| {
+        if (entry.kind == .File) {
+            var file = try cwd.openFile(entry.name, .{.read = true});
+            defer file.close();
+            var corpus_sample = Sample.init(allocator);
+            var buf: [std.mem.page_size]u8 = undefined;
+            var bytes_read = try file.read(buf[0..]);
+            while (bytes_read > 0) {
+                try corpus_sample.data.appendSlice(buf[0..bytes_read]);
+                bytes_read = try file.read(buf[0..]);
+            }
+            try sample_pool.append(corpus_sample);
+        }
+    }
+
+    std.log.info("Corpus size: {}", .{sample_pool.items.len});
 
     var total_trace = AutoHashMap(usize, void).init(allocator);
     defer total_trace.deinit();
