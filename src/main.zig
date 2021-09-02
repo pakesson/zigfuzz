@@ -11,10 +11,12 @@ const proc = @import("proc.zig");
 const elf = @import("elf.zig");
 const ElfFile = elf.ElfFile;
 const Symbol = elf.Symbol;
+
 const Sample = @import("sample.zig").Sample;
 
-usingnamespace @import("ptrace.zig");
-usingnamespace @import("personality.zig");
+const ptrace = @import("ptrace.zig");
+const pid_t = ptrace.pid_t;
+const personality = @import("personality.zig");
 
 const Statistics = struct {
     cases: u64 = 0,
@@ -41,8 +43,8 @@ fn WIFSTOPPED(s: u32) bool {
 }
 
 fn run_child(path: [*:0]const u8, filename: [*:0]const u8) void {
-    _ = ptrace(.PTRACE_TRACEME, 0, 0, 0);
-    _ = personality(ADDR_NO_RANDOMIZE);
+    _ = ptrace.ptrace(.PTRACE_TRACEME, 0, 0, 0);
+    _ = personality.personality(personality.ADDR_NO_RANDOMIZE);
 
     const argv = [_:null]?[*:0]const u8{ path, filename, null };
     const envp = [_:null]?[*:0]const u8{ null };
@@ -76,13 +78,13 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
             const address = base+symbol.address;
             if (breakpoint_replacements.get(address) != null) continue;
 
-            const original_data = ptrace_getdata(pid, address);
+            const original_data = ptrace.ptrace_getdata(pid, address);
             const breakpoint_data = (original_data & (@as(usize, std.math.maxInt(usize)) ^ 0xff)) | 0xcc;
-            ptrace_setdata(pid, address, breakpoint_data);
+            ptrace.ptrace_setdata(pid, address, breakpoint_data);
             breakpoint_replacements.put(base+symbol.address, original_data) catch return FuzzResult.err;
         }
 
-        _ = ptrace_cont(pid);
+        _ = ptrace.ptrace_cont(pid);
     } else {
         std.log.err("[PARENT] Child did not start correctly", .{});
         return FuzzResult.err;
@@ -100,22 +102,22 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
             const signal = std.os.WSTOPSIG(status);
             switch (signal) {
                 std.os.SIGSEGV => {
-                    const regs = ptrace_getregs(pid);
+                    const regs = ptrace.ptrace_getregs(pid);
                     return FuzzResult{.crash = FuzzResultData{.instruction_pointer = regs.rip, .trace = &trace}};
                 },
                 std.os.SIGTRAP => {
-                    var regs = ptrace_getregs(pid);
+                    var regs = ptrace.ptrace_getregs(pid);
                     const address = regs.rip - 1;
 
                     try trace.put(address, {});
 
                     const original_data = breakpoint_replacements.get(address).?;
-                    ptrace_setdata(pid, address, original_data);
+                    ptrace.ptrace_setdata(pid, address, original_data);
 
                     regs.rip = address;
-                    ptrace_setregs(pid, regs);
+                    ptrace.ptrace_setregs(pid, regs);
                     _ = breakpoint_replacements.remove(address);
-                    _ = ptrace_cont(pid);
+                    _ = ptrace.ptrace_cont(pid);
                 },
                 else => {
                     std.log.err("[PARENT] Unhandled signal. Returning.", .{});
