@@ -11,9 +11,7 @@ const proc = @import("proc.zig");
 const elf = @import("elf.zig");
 const ElfFile = elf.ElfFile;
 const Symbol = elf.Symbol;
-
-const Sample = @import("sample.zig").Sample;
-
+const Sample = @import("Sample.zig");
 const ptrace = @import("ptrace.zig");
 const pid_t = ptrace.pid_t;
 const personality = @import("personality.zig");
