@@ -1,5 +1,6 @@
 const std = @import("std");
 
+// zig fmt: off
 pub const UNAME26            = 0x0020000;
 pub const ADDR_NO_RANDOMIZE  = 0x0040000;
 pub const FDPIC_FUNCPTRS     = 0x0080000;
@@ -11,6 +12,7 @@ pub const SHORT_INODE        = 0x1000000;
 pub const WHOLE_SECONDS      = 0x2000000;
 pub const STICKY_TIMEOUTS    = 0x4000000;
 pub const ADDR_LIMIT_3GB     = 0x8000000;
+// zig fmt: on
 
 const get_current_personality = 0xffffffff;
 

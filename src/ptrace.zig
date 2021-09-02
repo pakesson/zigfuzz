@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const pid_t = std.os.linux.pid_t;
 
+// zig fmt: off
 pub const PtraceRequest = enum(usize) {
     PTRACE_TRACEME  = 0,
     PTRACE_PEEKTEXT = 1,
@@ -45,6 +46,7 @@ pub const UserRegs = extern struct {
     fs: c_ulonglong,
     gs: c_ulonglong
 };
+// zig fmt: on
 
 pub fn ptrace(request: PtraceRequest, pid: pid_t, addr: usize, data: usize) usize {
     return std.os.linux.syscall4(.ptrace, @enumToInt(request), @bitCast(usize, @as(isize, pid)), addr, data);

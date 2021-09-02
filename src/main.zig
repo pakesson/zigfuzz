@@ -45,7 +45,7 @@ fn run_child(path: [*:0]const u8, filename: [*:0]const u8) void {
     _ = personality.personality(personality.ADDR_NO_RANDOMIZE);
 
     const argv = [_:null]?[*:0]const u8{ path, filename, null };
-    const envp = [_:null]?[*:0]const u8{ null };
+    const envp = [_:null]?[*:0]const u8{null};
     const res = std.os.execveZ(path, &argv, &envp);
     std.debug.panic("{}", .{res});
 }
@@ -65,21 +65,21 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
     errdefer trace.deinit();
 
     if (WIFSTOPPED(initstatus) and
-            std.os.WSTOPSIG(initstatus) == std.os.SIGTRAP) {
-
+        std.os.WSTOPSIG(initstatus) == std.os.SIGTRAP)
+    {
         base = proc.auxv_phdr_base_address(pid) catch return FuzzResult.err;
 
         for (symbols) |symbol| {
             if (symbol.address == 0) continue;
             if (std.mem.startsWith(u8, symbol.name.items, "_")) continue;
 
-            const address = base+symbol.address;
+            const address = base + symbol.address;
             if (breakpoint_replacements.get(address) != null) continue;
 
             const original_data = ptrace.ptrace_getdata(pid, address);
             const breakpoint_data = (original_data & (@as(usize, std.math.maxInt(usize)) ^ 0xff)) | 0xcc;
             ptrace.ptrace_setdata(pid, address, breakpoint_data);
-            breakpoint_replacements.put(base+symbol.address, original_data) catch return FuzzResult.err;
+            breakpoint_replacements.put(base + symbol.address, original_data) catch return FuzzResult.err;
         }
 
         _ = ptrace.ptrace_cont(pid);
@@ -92,7 +92,7 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
         const status = std.os.waitpid(pid, 0).status;
 
         if (std.os.WIFEXITED(status)) {
-            return FuzzResult{.ok = FuzzResultData{.trace = &trace}};
+            return FuzzResult{ .ok = FuzzResultData{ .trace = &trace } };
         } else if (std.os.WIFSIGNALED(status)) {
             std.log.debug("[PARENT] Unhandled: WIFSIGNALED", .{});
             return FuzzResult.err;
@@ -101,7 +101,7 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
             switch (signal) {
                 std.os.SIGSEGV => {
                     const regs = ptrace.ptrace_getregs(pid);
-                    return FuzzResult{.crash = FuzzResultData{.instruction_pointer = regs.rip, .trace = &trace}};
+                    return FuzzResult{ .crash = FuzzResultData{ .instruction_pointer = regs.rip, .trace = &trace } };
                 },
                 std.os.SIGTRAP => {
                     var regs = ptrace.ptrace_getregs(pid);
@@ -120,7 +120,7 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
                 else => {
                     std.log.err("[PARENT] Unhandled signal. Returning.", .{});
                     return FuzzResult.err;
-                }
+                },
             }
         } else {
             std.log.err("[PARENT] Unknown child status. Returning.", .{});
@@ -151,18 +151,16 @@ fn cmpSamples(_: void, lhs: Sample, rhs: Sample) bool {
 
 fn print_stats(stats: Statistics) void {
     const fcps = @floatToInt(u64, @intToFloat(f64, stats.cases) / stats.elapsed_time);
-    std.log.info("Cases: {}\tCases per second: {}\tCoverage: {}\tCrashes: {}\tTime: {d:.2} seconds",
-        .{stats.cases, fcps, stats.coverage, stats.crashes, stats.elapsed_time});
+    std.log.info("Cases: {}\tCases per second: {}\tCoverage: {}\tCrashes: {}\tTime: {d:.2} seconds", .{ stats.cases, fcps, stats.coverage, stats.crashes, stats.elapsed_time });
 }
 
-fn save_crash(crash_directory: []const u8, sample: Sample) !void
-{
+fn save_crash(crash_directory: []const u8, sample: Sample) !void {
     var hash: [Sha256.digest_length]u8 = undefined;
     Sha256.hash(sample.data.items, &hash, .{});
 
     var filenamebuf: [128]u8 = undefined;
     const filenameslice = filenamebuf[0..];
-    const crash_filename = try std.fmt.bufPrint(filenameslice, "{s}/crash_{}", .{crash_directory, std.fmt.fmtSliceHexLower(hash[0..])});
+    const crash_filename = try std.fmt.bufPrint(filenameslice, "{s}/crash_{}", .{ crash_directory, std.fmt.fmtSliceHexLower(hash[0..]) });
 
     const file = try std.fs.cwd().createFile(
         crash_filename,
@@ -239,14 +237,14 @@ pub fn main() anyerror!void {
         var candidate = Sample.init(allocator);
         errdefer candidate.deinit();
         const coeff = rand.float(f64);
-        const sample_idx = @floatToInt(usize, std.math.round(@intToFloat(f64, sample_pool.items.len-1) * coeff * coeff));
+        const sample_idx = @floatToInt(usize, std.math.round(@intToFloat(f64, sample_pool.items.len - 1) * coeff * coeff));
         try candidate.data.insertSlice(0, sample_pool.items[sample_idx].data.items);
 
         // Mutate
-        const bytes_to_modify = rand.intRangeAtMost(usize, 1, std.math.max(3, candidate.data.items.len-1));
+        const bytes_to_modify = rand.intRangeAtMost(usize, 1, std.math.max(3, candidate.data.items.len - 1));
         var i: usize = 0;
         while (i < bytes_to_modify) {
-            const byte_idx = rand.intRangeAtMost(usize, 0, candidate.data.items.len-1);
+            const byte_idx = rand.intRangeAtMost(usize, 0, candidate.data.items.len - 1);
             candidate.data.items[byte_idx] = rand.int(u8);
             i += 1;
         }

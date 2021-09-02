@@ -6,9 +6,7 @@ pub const AuxvErrors = error{
     PhdrNotFound,
 };
 
-pub const MapsErrors = error{
-    BaseAddressNotFound
-};
+pub const MapsErrors = error{BaseAddressNotFound};
 
 pub fn auxv_phdr_base_address(pid: pid_t) !usize {
     var filenamebuf: [64]u8 = undefined;

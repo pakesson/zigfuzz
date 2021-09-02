@@ -109,7 +109,7 @@ pub const ElfFile = struct {
                     var symname = ArrayList(u8).init(self.allocator);
                     try symname.appendSlice(std.mem.span(std.meta.assumeSentinel(strtab_strings[sym.st_name..].ptr, 0)));
 
-                    var symbol: Symbol = Symbol {
+                    var symbol: Symbol = Symbol{
                         .name = symname,
                         .address = sym.st_value,
                     };
