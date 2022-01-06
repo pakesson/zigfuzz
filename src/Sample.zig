@@ -6,11 +6,11 @@ const AutoHashMap = std.AutoHashMap;
 
 const Self = @This();
 
-allocator: *Allocator,
+allocator: Allocator,
 data: ArrayList(u8),
 trace: AutoHashMap(usize, void),
 
-pub fn init(allocator: *Allocator) Self {
+pub fn init(allocator: Allocator) Self {
     return Self{
         .allocator = allocator,
         .data = ArrayList(u8).init(allocator),

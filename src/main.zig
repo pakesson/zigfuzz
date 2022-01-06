@@ -1,5 +1,6 @@
 const std = @import("std");
 const time = std.time;
+const builtin = @import("builtin");
 
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
@@ -34,12 +35,6 @@ const FuzzResult = union(enum) {
     err: void,
 };
 
-// Workaround for a bug in std.os.WIFSTOPPED for Linux, FreeBSD and DragonFly BSD
-// (Use truncating cast instead of @intCast)
-fn WIFSTOPPED(s: u32) bool {
-    return @truncate(u16, ((s & 0xffff) *% 0x10001) >> 8) > 0x7f00;
-}
-
 fn run_child(path: [*:0]const u8, filename: [*:0]const u8) void {
     _ = ptrace.ptrace(.PTRACE_TRACEME, 0, 0, 0);
     _ = personality.personality(personality.ADDR_NO_RANDOMIZE);
@@ -50,7 +45,7 @@ fn run_child(path: [*:0]const u8, filename: [*:0]const u8) void {
     std.debug.panic("{}", .{res});
 }
 
-fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult {
+fn run_parent(allocator: Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult {
     // Handle initial SIGTRAP
     const initstatus = std.os.waitpid(pid, 0).status;
 
@@ -64,8 +59,8 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
     var trace = AutoHashMap(usize, void).init(allocator);
     errdefer trace.deinit();
 
-    if (WIFSTOPPED(initstatus) and
-        std.os.WSTOPSIG(initstatus) == std.os.SIGTRAP)
+    if (std.os.W.IFSTOPPED(initstatus) and
+        std.os.W.STOPSIG(initstatus) == std.os.SIG.TRAP)
     {
         base = proc.auxv_phdr_base_address(pid) catch return FuzzResult.err;
 
@@ -91,19 +86,19 @@ fn run_parent(allocator: *Allocator, pid: pid_t, symbols: []Symbol) !FuzzResult 
     while (true) {
         const status = std.os.waitpid(pid, 0).status;
 
-        if (std.os.WIFEXITED(status)) {
+        if (std.os.W.IFEXITED(status)) {
             return FuzzResult{ .ok = FuzzResultData{ .trace = &trace } };
-        } else if (std.os.WIFSIGNALED(status)) {
+        } else if (std.os.W.IFSIGNALED(status)) {
             std.log.debug("[PARENT] Unhandled: WIFSIGNALED", .{});
             return FuzzResult.err;
-        } else if (WIFSTOPPED(status)) {
-            const signal = std.os.WSTOPSIG(status);
+        } else if (std.os.W.IFSTOPPED(status)) {
+            const signal = std.os.W.STOPSIG(status);
             switch (signal) {
-                std.os.SIGSEGV => {
+                std.os.SIG.SEGV => {
                     const regs = ptrace.ptrace_getregs(pid);
                     return FuzzResult{ .crash = FuzzResultData{ .instruction_pointer = regs.rip, .trace = &trace } };
                 },
-                std.os.SIGTRAP => {
+                std.os.SIG.TRAP => {
                     var regs = ptrace.ptrace_getregs(pid);
                     const address = regs.rip - 1;
 
@@ -173,7 +168,7 @@ fn save_crash(crash_directory: []const u8, sample: Sample) !void {
 pub fn main() anyerror!void {
     std.log.info("Initializing", .{});
 
-    if (std.Target.current.cpu.arch != .x86_64) {
+    if (builtin.target.cpu.arch != .x86_64) {
         std.log.err("Unsupported architecture", .{});
         return;
     }
@@ -183,7 +178,7 @@ pub fn main() anyerror!void {
         try std.os.getrandom(std.mem.asBytes(&seed));
         break :blk seed;
     });
-    const rand = &prng.random;
+    const rand = prng.random();
 
     var stats = Statistics{};
     var running: bool = true;
@@ -206,7 +201,7 @@ pub fn main() anyerror!void {
 
     var gpalloc = std.heap.GeneralPurposeAllocator(.{}){};
     defer std.debug.assert(!gpalloc.deinit());
-    const allocator = &gpalloc.allocator;
+    const allocator = gpalloc.allocator();
 
     // Load Elf file
     var elfFile = try ElfFile.open(allocator, target_binary);

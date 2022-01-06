@@ -73,8 +73,9 @@ pub fn ptrace_setdata(pid: pid_t, addr: usize, data: usize) void {
 pub fn ptrace_getdata(pid: pid_t, addr: usize) usize {
     var data: usize = 0;
     const res = ptrace(.PTRACE_PEEKTEXT, pid, addr, @ptrToInt(&data));
-    if (std.os.errno(res) != 0) {
-        std.log.debug("Errno: {}", .{std.os.errno(res)});
+    switch (std.os.errno(res)) {
+        .SUCCESS => {},
+        else => |errno| std.log.debug("Errno: {}", .{errno}),
     }
     return data;
 }

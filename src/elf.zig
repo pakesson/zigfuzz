@@ -7,8 +7,8 @@ const os = std.os;
 
 const Allocator = mem.Allocator;
 const ArrayList = std.ArrayList;
-const builtin = std.builtin;
-const native_arch = std.Target.current.cpu.arch;
+const builtin = @import("builtin");
+const native_arch = builtin.target.cpu.arch;
 const native_endian = native_arch.endian();
 
 pub const Symbol = struct {
@@ -17,7 +17,7 @@ pub const Symbol = struct {
 };
 
 pub const ElfFile = struct {
-    allocator: *Allocator,
+    allocator: Allocator,
     mapped_mem: []align(mem.page_size) u8,
 
     hdr64: *std.elf.Elf64_Ehdr,
@@ -33,8 +33,8 @@ pub const ElfFile = struct {
         UnsupportedElfClass,
     };
 
-    pub fn open(allocator: *Allocator, path: []const u8) !ElfFile {
-        var fd = try os.open(path, 0, os.O_RDONLY | os.O_CLOEXEC);
+    pub fn open(allocator: Allocator, path: []const u8) !ElfFile {
+        var fd = try os.open(path, 0, os.O.RDONLY | os.O.CLOEXEC);
         defer os.close(fd);
 
         const stat = try os.fstat(fd);
@@ -43,8 +43,8 @@ pub const ElfFile = struct {
         var mapped_mem = try os.mmap(
             null,
             mem.alignForward(size, mem.page_size),
-            os.PROT_READ,
-            os.MAP_PRIVATE,
+            os.PROT.READ,
+            os.MAP.PRIVATE,
             fd,
             0,
         );
@@ -58,7 +58,7 @@ pub const ElfFile = struct {
         // We only support 64bit for now
         if (hdr64.e_ident[elf.EI_CLASS] != elf.ELFCLASS64) return error.UnsupportedElfClass;
 
-        const endian: builtin.Endian = switch (hdr64.e_ident[elf.EI_DATA]) {
+        const endian: std.builtin.Endian = switch (hdr64.e_ident[elf.EI_DATA]) {
             elf.ELFDATA2LSB => .Little,
             elf.ELFDATA2MSB => .Big,
             else => return error.InvalidElfEndian,
@@ -107,7 +107,7 @@ pub const ElfFile = struct {
                     const sym_name = std.mem.span(std.meta.assumeSentinel(strtab_strings[sym.st_name..].ptr, 0));
 
                     var symname = ArrayList(u8).init(self.allocator);
-                    try symname.appendSlice(std.mem.span(std.meta.assumeSentinel(strtab_strings[sym.st_name..].ptr, 0)));
+                    try symname.appendSlice(sym_name);
 
                     var symbol: Symbol = Symbol{
                         .name = symname,
