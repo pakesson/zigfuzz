@@ -38,7 +38,7 @@ pub const ElfFile = struct {
         defer os.close(fd);
 
         const stat = try os.fstat(fd);
-        const size = try std.math.cast(usize, stat.size);
+        const size = std.math.cast(usize, stat.size).?;
 
         var mapped_mem = try os.mmap(
             null,
@@ -85,7 +85,7 @@ pub const ElfFile = struct {
         const str_section_off = shoff + @as(u64, self.hdr64.e_shentsize) * @as(u64, self.hdr64.e_shstrndx);
         const str_shdr = @ptrCast(
             *const elf.Elf64_Shdr,
-            @alignCast(@alignOf(elf.Elf64_Shdr), &self.mapped_mem[try math.cast(usize, str_section_off)]),
+            @alignCast(@alignOf(elf.Elf64_Shdr), &self.mapped_mem[math.cast(usize, str_section_off).?]),
         );
         const header_strings = self.mapped_mem[str_shdr.sh_offset .. str_shdr.sh_offset + str_shdr.sh_size];
         const shdrs = @ptrCast([*]const elf.Elf64_Shdr, @alignCast(@alignOf(elf.Elf64_Shdr), &self.mapped_mem[shoff]))[0..self.hdr64.e_shnum];

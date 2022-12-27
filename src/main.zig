@@ -216,12 +216,12 @@ pub fn main() anyerror!void {
         sample_pool.deinit();
     }
 
-    var cwd = try std.fs.cwd().openDir(corpus_directory, .{.iterate = true});
+    var cwd = try std.fs.cwd().openIterableDir(corpus_directory, .{});
     defer cwd.close();
     var dir_it = cwd.iterate();
     while (try dir_it.next()) |entry| {
         if (entry.kind == .File) {
-            var file = try cwd.openFile(entry.name, .{.read = true});
+            var file = try cwd.dir.openFile(entry.name, .{.mode = .read_only});
             defer file.close();
             var corpus_sample = Sample.init(allocator);
             var buf: [std.mem.page_size]u8 = undefined;
